@@ -1,0 +1,79 @@
+#!/usr/bin/with-contenv bashio
+
+# Read config
+CREDENTIAL_SECRET=$(bashio::config 'credential_secret')
+THEME=$(bashio::config 'theme')
+SSL=$(bashio::config 'ssl')
+CERTFILE=$(bashio::config 'certfile')
+KEYFILE=$(bashio::config 'keyfile')
+REQUIRE_SSL=$(bashio::config 'require_ssl')
+SYSTEM_PACKAGES=$(bashio::config 'system_packages')
+NPM_PACKAGES=$(bashio::config 'npm_packages')
+INIT_COMMANDS=$(bashio::config 'init_commands')
+
+# Create config directory
+mkdir -p /config/node-red
+
+# Export Node-RED settings
+export NODE_RED_CREDENTIAL_SECRET="${CREDENTIAL_SECRET:-homeassistant}"
+
+# Set theme
+THEME_SETTING=""
+case "$THEME" in
+    "midnight-red")
+        THEME_SETTING="midnight-red"
+        ;;
+    "midnight-blue")
+        THEME_SETTING="midnight-blue"
+        ;;
+    "oled")
+        THEME_SETTING="oled"
+        ;;
+    "solarized-light")
+        THEME_SETTING="solarized-light"
+        ;;
+    "solarized-dark")
+        THEME_SETTING="solarized-dark"
+        ;;
+    *)
+        THEME_SETTING="default"
+        ;;
+esac
+
+bashio::log.info "Node-RED theme: $THEME_SETTING"
+
+# Install system packages if requested
+if [ -n "$SYSTEM_PACKAGES" ] && [ "$SYSTEM_PACKAGES" != "[]" ] && [ "$SYSTEM_PACKAGES" != "null" ]; then
+    bashio::log.info "Installing system packages..."
+    for pkg in $(echo "$SYSTEM_PACKAGES" | jq -r '.[]'); do
+        apk add --no-cache "$pkg" 2>/dev/null || true
+    done
+fi
+
+# Install npm packages if requested
+if [ -n "$NPM_PACKAGES" ] && [ "$NPM_PACKAGES" != "[]" ] && [ "$NPM_PACKAGES" != "null" ]; then
+    bashio::log.info "Installing npm packages..."
+    cd /usr/src/node-red
+    for pkg in $(echo "$NPM_PACKAGES" | jq -r '.[]'); do
+        npm install "$pkg" 2>/dev/null || true
+    done
+fi
+
+# Run init commands if requested
+if [ -n "$INIT_COMMANDS" ] && [ "$INIT_COMMANDS" != "[]" ] && [ "$INIT_COMMANDS" != "null" ]; then
+    bashio::log.info "Running init commands..."
+    for cmd in $(echo "$INIT_COMMANDS" | jq -r '.[]'); do
+        eval "$cmd" 2>/dev/null || true
+    done
+fi
+
+# Build settings.js for SSL if needed
+if [ "$SSL" = "true" ]; then
+    bashio::log.info "SSL enabled"
+fi
+
+# Change to config directory
+cd /config/node-red
+
+bashio::log.info "Starting Node-RED..."
+exec /usr/local/bin/node-red --userDir /config/node-red --settings /usr/src/node-red/settings.js

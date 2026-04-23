@@ -1,0 +1,6 @@
+build_from:
+  aarch64: nodered/node-red:latest
+  amd64: nodered/node-red:latest
+  armhf: nodered/node-red:latest
+  armv7: nodered/node-red:latest
+  i386: nodered/node-red:latest

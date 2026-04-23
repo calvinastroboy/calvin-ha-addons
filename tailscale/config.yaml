@@ -1,0 +1,43 @@
+name: "Tailscale"
+version: "1.76.0"
+slug: "tailscale"
+description: "Zero config VPN for building secure networks"
+url: "https://github.com/calvinastroboy/calvin-ha-addons/tree/main/tailscale"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+init: false
+privileged:
+  - NET_ADMIN
+host_network: true
+devices:
+  - /dev/net/tun
+cap_add:
+  - NET_ADMIN
+  - NET_RAW
+options:
+  auth_key: ""
+  hostname: "homeassistant"
+  advertise_routes: []
+  advertise_exit_node: false
+  funnel: false
+  funnel_port: 8123
+  ssh: true
+  tags: []
+  login_server: ""
+schema:
+  auth_key: str?
+  hostname: str
+  advertise_routes:
+    - str?
+  advertise_exit_node: bool
+  funnel: bool
+  funnel_port: int
+  ssh: bool
+  tags:
+    - str?
+  login_server: str?
+startup: services

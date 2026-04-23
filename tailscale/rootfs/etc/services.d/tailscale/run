@@ -1,0 +1,81 @@
+#!/usr/bin/with-contenv bashio
+
+# Ensure TUN device exists
+mkdir -p /dev/net
+if [ ! -c /dev/net/tun ]; then
+    mknod /dev/net/tun c 10 200
+    chmod 600 /dev/net/tun
+fi
+
+# Read config
+AUTH_KEY=$(bashio::config 'auth_key')
+HOSTNAME=$(bashio::config 'hostname')
+ADVERTISE_ROUTES=$(bashio::config 'advertise_routes')
+ADVERTISE_EXIT_NODE=$(bashio::config 'advertise_exit_node')
+FUNNEL=$(bashio::config 'funnel')
+FUNNEL_PORT=$(bashio::config 'funnel_port')
+SSH=$(bashio::config 'ssh')
+TAGS=$(bashio::config 'tags')
+LOGIN_SERVER=$(bashio::config 'login_server')
+
+# Build flags
+FLAGS="--hostname=${HOSTNAME}"
+
+# Add auth key if provided
+if [ -n "$AUTH_KEY" ] && [ "$AUTH_KEY" != "null" ]; then
+    FLAGS="${FLAGS} --authkey=${AUTH_KEY}"
+fi
+
+# Add tags if provided
+if [ -n "$TAGS" ] && [ "$TAGS" != "[]" ] && [ "$TAGS" != "null" ]; then
+    TAG_LIST=$(echo "$TAGS" | jq -r '.[]' | tr '\n' ',' | sed 's/,$//')
+    if [ -n "$TAG_LIST" ]; then
+        FLAGS="${FLAGS} --advertise-tags=${TAG_LIST}"
+    fi
+fi
+
+# Add routes if provided
+if [ -n "$ADVERTISE_ROUTES" ] && [ "$ADVERTISE_ROUTES" != "[]" ] && [ "$ADVERTISE_ROUTES" != "null" ]; then
+    ROUTE_LIST=$(echo "$ADVERTISE_ROUTES" | jq -r '.[]' | tr '\n' ',' | sed 's/,$//')
+    if [ -n "$ROUTE_LIST" ]; then
+        FLAGS="${FLAGS} --advertise-routes=${ROUTE_LIST}"
+    fi
+fi
+
+# Add exit node if enabled
+if [ "$ADVERTISE_EXIT_NODE" = "true" ]; then
+    FLAGS="${FLAGS} --advertise-exit-node"
+fi
+
+# Add SSH if enabled
+if [ "$SSH" = "true" ]; then
+    FLAGS="${FLAGS} --ssh"
+fi
+
+# Add custom login server if provided
+if [ -n "$LOGIN_SERVER" ] && [ "$LOGIN_SERVER" != "null" ]; then
+    FLAGS="${FLAGS} --login-server=${LOGIN_SERVER}"
+fi
+
+bashio::log.info "Starting Tailscale..."
+bashio::log.info "Hostname: $HOSTNAME"
+
+# Start tailscaled
+/usr/local/bin/tailscaled --state=/data/tailscaled.state --socket=/var/run/tailscale/tailscaled.sock &
+
+sleep 2
+
+# Bring up tailscale
+bashio::log.info "Connecting to Tailscale network..."
+/usr/local/bin/tailscale up ${FLAGS}
+
+# Setup funnel if enabled
+if [ "$FUNNEL" = "true" ]; then
+    bashio::log.info "Enabling Tailscale Funnel on port $FUNNEL_PORT..."
+    /usr/local/bin/tailscale funnel --bg "$FUNNEL_PORT"
+fi
+
+bashio::log.info "Tailscale connected successfully!"
+
+# Keep running
+wait

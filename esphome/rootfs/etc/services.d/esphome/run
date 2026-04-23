@@ -1,0 +1,37 @@
+#!/usr/bin/with-contenv bashio
+
+# Read config
+SSL=$(bashio::config 'ssl')
+CERTFILE=$(bashio::config 'certfile')
+KEYFILE=$(bashio::config 'keyfile')
+LEAVE_FRONT_DOOR_OPEN=$(bashio::config 'leave_front_door_open')
+
+# Set environment
+export ESPHOME_DASHBOARD_USE_PING=true
+export PLATFORMIO_CORE_DIR=/data/platformio
+export PLATFORMIO_GLOBALLIB_DIR=/piolibs
+
+# Build dashboard command
+CMD="esphome dashboard /config/esphome"
+
+# Add SSL if enabled
+if [ "$SSL" = "true" ]; then
+    if [ -f "/ssl/$CERTFILE" ] && [ -f "/ssl/$KEYFILE" ]; then
+        CMD="$CMD --certificate /ssl/$CERTFILE --key /ssl/$KEYFILE"
+        bashio::log.info "SSL enabled"
+    else
+        bashio::log.warning "SSL certificates not found, running without SSL"
+    fi
+fi
+
+# Add no-auth if leave_front_door_open is enabled
+if [ "$LEAVE_FRONT_DOOR_OPEN" = "true" ]; then
+    CMD="$CMD --no-auth"
+    bashio::log.warning "Dashboard authentication disabled!"
+fi
+
+# Create ESPHome config directory
+mkdir -p /config/esphome
+
+bashio::log.info "Starting ESPHome dashboard..."
+exec $CMD
