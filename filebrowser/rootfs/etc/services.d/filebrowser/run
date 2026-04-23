@@ -1,0 +1,37 @@
+#!/usr/bin/with-contenv bashio
+
+# Read config from Home Assistant options
+PORT=$(bashio::config 'port')
+BASEURL=$(bashio::config 'baseurl')
+NOAUTH=$(bashio::config 'noauth')
+USERNAME=$(bashio::config 'username')
+PASSWORD=$(bashio::config 'password')
+
+# Create database directory
+mkdir -p /data/filebrowser
+
+# Initialize filebrowser database
+if [ ! -f /data/filebrowser/filebrowser.db ]; then
+    bashio::log.info "Initializing Filebrowser database..."
+    filebrowser -d /data/filebrowser/filebrowser.db config init
+    filebrowser -d /data/filebrowser/filebrowser.db config set --auth.method=noauth
+    filebrowser -d /data/filebrowser/filebrowser.db users add "$USERNAME" "$PASSWORD" --perm.admin
+fi
+
+# Configure settings
+filebrowser -d /data/filebrowser/filebrowser.db config set \
+    --port="$PORT" \
+    --baseurl="$BASEURL" \
+    --root=/share
+
+# Set authentication
+if [ "$NOAUTH" = "true" ]; then
+    bashio::log.info "Running without authentication..."
+    filebrowser -d /data/filebrowser/filebrowser.db config set --auth.method=noauth
+else
+    bashio::log.info "Running with authentication..."
+    filebrowser -d /data/filebrowser/filebrowser.db config set --auth.method=json
+fi
+
+bashio::log.info "Starting Filebrowser on port $PORT..."
+exec filebrowser -d /data/filebrowser/filebrowser.db

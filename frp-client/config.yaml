@@ -1,0 +1,30 @@
+name: "FRP Client"
+version: "1.0.0"
+slug: "frp_client"
+description: "Fast Reverse Proxy client for exposing Home Assistant to external network"
+url: "https://github.com/calvinastroboy/calvin-ha-addons/tree/main/frp-client"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+init: false
+map:
+  - share:rw
+options:
+  server_addr: "your-frp-server.com"
+  server_port: 7000
+  token: ""
+  remote_port: 8123
+  subdomain: ""
+  custom_domains: []
+schema:
+  server_addr: str
+  server_port: int
+  token: str
+  remote_port: int
+  subdomain: str?
+  custom_domains:
+    - str?
+startup: services

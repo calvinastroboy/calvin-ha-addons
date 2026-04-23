@@ -1,0 +1,44 @@
+#!/usr/bin/with-contenv bashio
+
+CONFIG_PATH=/share/frpc.toml
+
+# Read config from Home Assistant options
+SERVER_ADDR=$(bashio::config 'server_addr')
+SERVER_PORT=$(bashio::config 'server_port')
+TOKEN=$(bashio::config 'token')
+REMOTE_PORT=$(bashio::config 'remote_port')
+SUBDOMAIN=$(bashio::config 'subdomain')
+
+# Generate frpc.toml
+bashio::log.info "Generating FRP client config..."
+
+cat > "$CONFIG_PATH" <<EOF
+serverAddr = "${SERVER_ADDR}"
+serverPort = ${SERVER_PORT}
+auth.method = "token"
+auth.token = "${TOKEN}"
+
+[[proxies]]
+name = "ha-web"
+type = "tcp"
+localIP = "127.0.0.1"
+localPort = 8123
+remotePort = ${REMOTE_PORT}
+EOF
+
+# Add custom domains if configured
+CUSTOM_DOMAINS=$(bashio::config 'custom_domains')
+if [ -n "$CUSTOM_DOMAINS" ] && [ "$CUSTOM_DOMAINS" != "[]" ] && [ "$CUSTOM_DOMAINS" != "null" ]; then
+    DOMAINS=$(echo "$CUSTOM_DOMAINS" | tr -d '[]"' | tr ',' ' ')
+    if [ -n "$DOMAINS" ]; then
+        bashio::log.info "Using custom domains: $DOMAINS"
+    fi
+fi
+
+# Add subdomain if configured
+if [ -n "$SUBDOMAIN" ] && [ "$SUBDOMAIN" != "null" ]; then
+    bashio::log.info "Using subdomain: $SUBDOMAIN"
+fi
+
+bashio::log.info "Starting FRP client..."
+exec frpc -c "$CONFIG_PATH"

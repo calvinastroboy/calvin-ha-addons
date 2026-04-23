@@ -1,0 +1,31 @@
+name: "Filebrowser"
+version: "1.0.0"
+slug: "filebrowser"
+description: "Web-based file manager for Home Assistant"
+url: "https://github.com/calvinastroboy/calvin-ha-addons/tree/main/filebrowser"
+arch:
+  - aarch64
+  - amd64
+  - armhf
+  - armv7
+  - i386
+init: false
+map:
+  - share:rw
+  - media:rw
+  - homeassistant_config:rw
+  - ssl:rw
+options:
+  port: 8080
+  baseurl: "/"
+  noauth: false
+  username: "admin"
+  password: "admin"
+schema:
+  port: port
+  baseurl: str
+  noauth: bool
+  username: str
+  password: str
+startup: services
+webui: "http://[HOST]:[PORT:8080]"
