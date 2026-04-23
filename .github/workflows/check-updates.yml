@@ -2,8 +2,8 @@ name: Check for upstream updates
 
 on:
   schedule:
-    # Run daily at 6:00 AM UTC
-    - cron: '0 6 * * *'
+    # Run weekly (Sundays at 6:00 AM UTC) - Reduced frequency since we use fixed versions
+    - cron: '0 6 * * 0'
   workflow_dispatch:
 
 jobs:
@@ -13,68 +13,124 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check for FRP updates
-        id: check-frp
+      - name: Check all upstream versions
+        id: check-versions
         run: |
-          CURRENT_VERSION=$(cat versions.json | jq -r '.["frp-client"].current_frp_version')
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | jq -r .tag_name)
-          echo "Current: $CURRENT_VERSION, Latest: $LATEST_VERSION"
-          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-            echo "frp_update_needed=true" >> $GITHUB_OUTPUT
-            echo "frp_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-            sed -i "s/FRP_VERSION=.*/FRP_VERSION=$LATEST_VERSION/" frp-client/Dockerfile
-            sed -i "s/\"current_frp_version\": \".*\"/\"current_frp_version\": \"$LATEST_VERSION\"/" versions.json
+          echo "## Available Updates" > updates_report.md
+          echo "" >> updates_report.md
+          echo "The following updates are available. **Manual action required** to update." >> updates_report.md
+          echo "" >> updates_report.md
+
+          HAS_UPDATES=false
+
+          # Check FRP
+          CURRENT_FRP=$(cat versions.json | jq -r '.["frp-client"].current_frp_version')
+          LATEST_FRP=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | jq -r .tag_name)
+          if [ "$CURRENT_FRP" != "$LATEST_FRP" ]; then
+            echo "### 🔧 FRP Client" >> updates_report.md
+            echo "- Current: \`$CURRENT_FRP\`" >> updates_report.md
+            echo "- Latest: \`$LATEST_FRP\`" >> updates_report.md
+            echo "- File to update: \`frp-client/Dockerfile\`" >> updates_report.md
+            echo "" >> updates_report.md
+            HAS_UPDATES=true
           fi
 
-      - name: Check for Tailscale updates
-        id: check-tailscale
-        run: |
-          CURRENT_VERSION=$(cat versions.json | jq -r '.["tailscale"].current_tailscale_version')
-          LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | jq -r .tag_name | sed 's/v//')
-          echo "Current: $CURRENT_VERSION, Latest: $LATEST_VERSION"
-          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
-            echo "tailscale_update_needed=true" >> $GITHUB_OUTPUT
-            echo "tailscale_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
-            sed -i "s/TAILSCALE_VERSION=.*/TAILSCALE_VERSION=$LATEST_VERSION/" tailscale/Dockerfile
-            sed -i "s/\"current_tailscale_version\": \".*\"/\"current_tailscale_version\": \"$LATEST_VERSION\"/" versions.json
-            sed -i "s/\"version\": \".*\"/\"version\": \"$LATEST_VERSION\"/" tailscale/config.yaml
+          # Check Tailscale
+          CURRENT_TS=$(cat versions.json | jq -r '.["tailscale"].current_tailscale_version')
+          LATEST_TS=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | jq -r .tag_name | sed 's/v//')
+          if [ "$CURRENT_TS" != "$LATEST_TS" ]; then
+            echo "### 🔧 Tailscale" >> updates_report.md
+            echo "- Current: \`$CURRENT_TS\`" >> updates_report.md
+            echo "- Latest: \`$LATEST_TS\`" >> updates_report.md
+            echo "- Files to update: \`tailscale/Dockerfile\`, \`tailscale/config.yaml\`" >> updates_report.md
+            echo "" >> updates_report.md
+            HAS_UPDATES=true
           fi
 
-      - name: Check for Zigbee2MQTT updates
-        id: check-z2m
-        run: |
-          LATEST_VERSION=$(curl -s https://hub.docker.com/v2/repositories/koenkk/zigbee2mqtt/tags/latest | jq -r '.images[0].digest' | cut -d: -f2 | head -c 12)
-          echo "Latest Zigbee2MQTT digest: $LATEST_VERSION"
-          # For Docker Hub, we track the digest and just update config to trigger rebuild
-          echo "z2m_update_needed=true" >> $GITHUB_OUTPUT
+          # Check Filebrowser
+          CURRENT_FB=$(cat versions.json | jq -r '.["filebrowser"].current_filebrowser_version')
+          LATEST_FB=$(curl -s https://api.github.com/repos/filebrowser/filebrowser/releases/latest | jq -r .tag_name)
+          if [ "$CURRENT_FB" != "$LATEST_FB" ]; then
+            echo "### 🔧 Filebrowser" >> updates_report.md
+            echo "- Current: \`$CURRENT_FB\`" >> updates_report.md
+            echo "- Latest: \`$LATEST_FB\`" >> updates_report.md
+            echo "- File to update: \`filebrowser/Dockerfile\`" >> updates_report.md
+            echo "" >> updates_report.md
+            HAS_UPDATES=true
+          fi
 
-      - name: Check for Node-RED updates
-        id: check-nodered
-        run: |
-          LATEST_VERSION=$(curl -s https://hub.docker.com/v2/repositories/nodered/node-red/tags/latest | jq -r '.images[0].digest' | cut -d: -f2 | head -c 12)
-          echo "Latest Node-RED digest: $LATEST_VERSION"
-          echo "nodered_update_needed=true" >> $GITHUB_OUTPUT
+          # Check Zigbee2MQTT
+          CURRENT_Z2M=$(cat versions.json | jq -r '.["zigbee2mqtt"].current_z2m_version')
+          LATEST_Z2M=$(curl -s https://hub.docker.com/v2/repositories/koenkk/zigbee2mqtt/tags/ | jq -r '.results[] | select(.name != "latest" and .name != "dev") | .name' | sort -V | tail -1)
+          if [ "$CURRENT_Z2M" != "$LATEST_Z2M" ]; then
+            echo "### 🔧 Zigbee2MQTT" >> updates_report.md
+            echo "- Current: \`$CURRENT_Z2M\`" >> updates_report.md
+            echo "- Latest: \`$LATEST_Z2M\`" >> updates_report.md
+            echo "- Files to update: \`zigbee2mqtt/Dockerfile\`, \`zigbee2mqtt/config.yaml\`" >> updates_report.md
+            echo "" >> updates_report.md
+            HAS_UPDATES=true
+          fi
 
-      - name: Check for ESPHome updates
-        id: check-esphome
-        run: |
-          LATEST_VERSION=$(curl -s https://hub.docker.com/v2/repositories/esphome/esphome/tags/latest | jq -r '.images[0].digest' | cut -d: -f2 | head -c 12)
-          echo "Latest ESPHome digest: $LATEST_VERSION"
-          echo "esphome_update_needed=true" >> $GITHUB_OUTPUT
+          # Check Node-RED
+          CURRENT_NR=$(cat versions.json | jq -r '.["node-red"].current_nodered_version')
+          LATEST_NR=$(curl -s https://hub.docker.com/v2/repositories/nodered/node-red/tags/ | jq -r '.results[] | select(.name != "latest" and .name != "dev" and .name != "minimal" and .name != "latest-18" and .name != "latest-16") | .name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          if [ "$CURRENT_NR" != "$LATEST_NR" ]; then
+            echo "### 🔧 Node-RED" >> updates_report.md
+            echo "- Current: \`$CURRENT_NR\`" >> updates_report.md
+            echo "- Latest: \`$LATEST_NR\`" >> updates_report.md
+            echo "- Files to update: \`node-red/Dockerfile\`, \`node-red/build.yaml\`, \`node-red/config.yaml\`" >> updates_report.md
+            echo "" >> updates_report.md
+            HAS_UPDATES=true
+          fi
 
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
+          # Check ESPHome
+          CURRENT_ESPH=$(cat versions.json | jq -r '.["esphome"].current_esphome_version')
+          LATEST_ESPH=$(curl -s https://hub.docker.com/v2/repositories/esphome/esphome/tags/ | jq -r '.results[] | select(.name != "latest" and .name != "beta" and .name != "dev") | .name' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1)
+          if [ "$CURRENT_ESPH" != "$LATEST_ESPH" ]; then
+            echo "### 🔧 ESPHome" >> updates_report.md
+            echo "- Current: \`$CURRENT_ESPH\`" >> updates_report.md
+            echo "- Latest: \`$LATEST_ESPH\`" >> updates_report.md
+            echo "- Files to update: \`esphome/Dockerfile\`, \`esphome/build.yaml\`, \`esphome/config.yaml\`" >> updates_report.md
+            echo "" >> updates_report.md
+            HAS_UPDATES=true
+          fi
+
+          if [ "$HAS_UPDATES" = "false" ]; then
+            echo "All add-ons are up to date!" >> updates_report.md
+          fi
+
+          echo "has_updates=$HAS_UPDATES" >> $GITHUB_OUTPUT
+
+      - name: Create Issue for Available Updates
+        if: steps.check-versions.outputs.has_updates == 'true'
+        uses: actions/github-script@v7
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore: update add-on versions"
-          title: "Update add-on versions"
-          body: |
-            Automated version check detected updates:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('updates_report.md', 'utf8');
 
-            ${{ steps.check-frp.outputs.frp_update_needed == 'true' && format('- FRP: {0}', steps.check-frp.outputs.frp_version) || '' }}
-            ${{ steps.check-tailscale.outputs.tailscale_update_needed == 'true' && format('- Tailscale: {0}', steps.check-tailscale.outputs.tailscale_version) || '' }}
+            // Check if there's already an open issue for updates
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'updates-available'
+            });
 
-            Docker-based add-ons (Node-RED, ESPHome, Zigbee2MQTT) may have updates available.
-            Consider bumping their version numbers in config.yaml to trigger rebuilds.
-          branch: update-versions
-          delete-branch: true
+            if (issues.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Available upstream updates',
+                body: report,
+                labels: ['updates-available']
+              });
+            } else {
+              // Update existing issue
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issues.data[0].number,
+                body: report
+              });
+            }

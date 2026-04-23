@@ -1,9 +1,10 @@
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
+ARG FILEBROWSER_VERSION=v2.63.2
+
 # Install Filebrowser
 RUN apk add --no-cache curl jq && \
-    FILEBROWSER_VERSION=$(curl -s https://api.github.com/repos/filebrowser/filebrowser/releases/latest | jq -r .tag_name) && \
     if [ "$(uname -m)" = "aarch64" ]; then FB_ARCH=linux-arm64; \
     elif [ "$(uname -m)" = "x86_64" ]; then FB_ARCH=linux-amd64; \
     elif [ "$(uname -m)" = "armv7l" ]; then FB_ARCH=linux-armv7; \

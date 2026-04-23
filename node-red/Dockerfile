@@ -1,5 +1,5 @@
 ARG BUILD_FROM
-FROM nodered/node-red:latest
+FROM nodered/node-red:3.1.10
 
 USER root
 

@@ -1,5 +1,5 @@
 ARG BUILD_FROM
-FROM koenkk/zigbee2mqtt:latest
+FROM koenkk/zigbee2mqtt:1.40.2
 
 # Install bashio for config handling
 RUN apk add --no-cache curl jq

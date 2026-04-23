@@ -1,6 +1,6 @@
 build_from:
-  aarch64: esphome/esphome:latest
-  amd64: esphome/esphome:latest
-  armhf: esphome/esphome:latest
-  armv7: esphome/esphome:latest
-  i386: esphome/esphome:latest
+  aarch64: esphome/esphome:2024.10.0
+  amd64: esphome/esphome:2024.10.0
+  armhf: esphome/esphome:2024.10.0
+  armv7: esphome/esphome:2024.10.0
+  i386: esphome/esphome:2024.10.0

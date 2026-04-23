@@ -1,5 +1,5 @@
 ARG BUILD_FROM
-FROM esphome/esphome:latest
+FROM esphome/esphome:2024.10.0
 
 # Install bashio
 RUN apt-get update && apt-get install -y --no-install-recommends \
