@@ -1,0 +1,80 @@
+name: Check for upstream updates
+
+on:
+  schedule:
+    # Run daily at 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for FRP updates
+        id: check-frp
+        run: |
+          CURRENT_VERSION=$(cat versions.json | jq -r '.["frp-client"].current_frp_version')
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/fatedier/frp/releases/latest | jq -r .tag_name)
+          echo "Current: $CURRENT_VERSION, Latest: $LATEST_VERSION"
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "frp_update_needed=true" >> $GITHUB_OUTPUT
+            echo "frp_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            sed -i "s/FRP_VERSION=.*/FRP_VERSION=$LATEST_VERSION/" frp-client/Dockerfile
+            sed -i "s/\"current_frp_version\": \".*\"/\"current_frp_version\": \"$LATEST_VERSION\"/" versions.json
+          fi
+
+      - name: Check for Tailscale updates
+        id: check-tailscale
+        run: |
+          CURRENT_VERSION=$(cat versions.json | jq -r '.["tailscale"].current_tailscale_version')
+          LATEST_VERSION=$(curl -s https://api.github.com/repos/tailscale/tailscale/releases/latest | jq -r .tag_name | sed 's/v//')
+          echo "Current: $CURRENT_VERSION, Latest: $LATEST_VERSION"
+          if [ "$CURRENT_VERSION" != "$LATEST_VERSION" ]; then
+            echo "tailscale_update_needed=true" >> $GITHUB_OUTPUT
+            echo "tailscale_version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            sed -i "s/TAILSCALE_VERSION=.*/TAILSCALE_VERSION=$LATEST_VERSION/" tailscale/Dockerfile
+            sed -i "s/\"current_tailscale_version\": \".*\"/\"current_tailscale_version\": \"$LATEST_VERSION\"/" versions.json
+            sed -i "s/\"version\": \".*\"/\"version\": \"$LATEST_VERSION\"/" tailscale/config.yaml
+          fi
+
+      - name: Check for Zigbee2MQTT updates
+        id: check-z2m
+        run: |
+          LATEST_VERSION=$(curl -s https://hub.docker.com/v2/repositories/koenkk/zigbee2mqtt/tags/latest | jq -r '.images[0].digest' | cut -d: -f2 | head -c 12)
+          echo "Latest Zigbee2MQTT digest: $LATEST_VERSION"
+          # For Docker Hub, we track the digest and just update config to trigger rebuild
+          echo "z2m_update_needed=true" >> $GITHUB_OUTPUT
+
+      - name: Check for Node-RED updates
+        id: check-nodered
+        run: |
+          LATEST_VERSION=$(curl -s https://hub.docker.com/v2/repositories/nodered/node-red/tags/latest | jq -r '.images[0].digest' | cut -d: -f2 | head -c 12)
+          echo "Latest Node-RED digest: $LATEST_VERSION"
+          echo "nodered_update_needed=true" >> $GITHUB_OUTPUT
+
+      - name: Check for ESPHome updates
+        id: check-esphome
+        run: |
+          LATEST_VERSION=$(curl -s https://hub.docker.com/v2/repositories/esphome/esphome/tags/latest | jq -r '.images[0].digest' | cut -d: -f2 | head -c 12)
+          echo "Latest ESPHome digest: $LATEST_VERSION"
+          echo "esphome_update_needed=true" >> $GITHUB_OUTPUT
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update add-on versions"
+          title: "Update add-on versions"
+          body: |
+            Automated version check detected updates:
+
+            ${{ steps.check-frp.outputs.frp_update_needed == 'true' && format('- FRP: {0}', steps.check-frp.outputs.frp_version) || '' }}
+            ${{ steps.check-tailscale.outputs.tailscale_update_needed == 'true' && format('- Tailscale: {0}', steps.check-tailscale.outputs.tailscale_version) || '' }}
+
+            Docker-based add-ons (Node-RED, ESPHome, Zigbee2MQTT) may have updates available.
+            Consider bumping their version numbers in config.yaml to trigger rebuilds.
+          branch: update-versions
+          delete-branch: true

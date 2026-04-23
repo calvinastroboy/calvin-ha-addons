@@ -1,0 +1,42 @@
+{
+  "frp-client": {
+    "version": "1.0.0",
+    "upstream_repo": "fatedier/frp",
+    "current_frp_version": "v0.61.0",
+    "update_method": "github_release"
+  },
+  "filebrowser": {
+    "version": "1.0.0",
+    "upstream_repo": "filebrowser/filebrowser",
+    "update_method": "github_release"
+  },
+  "mqtt-broker": {
+    "version": "2.0.18",
+    "upstream_repo": "eclipse-mosquitto/mosquitto",
+    "update_method": "alpine_package"
+  },
+  "zigbee2mqtt": {
+    "version": "1.40.2",
+    "upstream_repo": "Koenkk/zigbee2mqtt",
+    "current_z2m_version": "latest",
+    "update_method": "docker_hub"
+  },
+  "node-red": {
+    "version": "3.1.10",
+    "upstream_repo": "node-red/node-red",
+    "current_nodered_version": "latest",
+    "update_method": "docker_hub"
+  },
+  "tailscale": {
+    "version": "1.76.0",
+    "upstream_repo": "tailscale/tailscale",
+    "current_tailscale_version": "1.76.0",
+    "update_method": "github_release"
+  },
+  "esphome": {
+    "version": "2024.10.0",
+    "upstream_repo": "esphome/esphome",
+    "current_esphome_version": "latest",
+    "update_method": "docker_hub"
+  }
+}
