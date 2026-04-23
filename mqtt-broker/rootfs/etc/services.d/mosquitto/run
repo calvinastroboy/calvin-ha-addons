@@ -1,0 +1,61 @@
+#!/usr/bin/with-contenv bashio
+
+CONFIG_FILE=/etc/mosquitto/mosquitto.conf
+PASSWORD_FILE=/data/mosquitto.passwd
+
+# Create data directory
+mkdir -p /data
+
+# Read config options
+USERNAME=$(bashio::config 'username')
+PASSWORD=$(bashio::config 'password')
+ANONYMOUS=$(bashio::config 'anonymous')
+SSL=$(bashio::config 'ssl')
+CERTFILE=$(bashio::config 'certfile')
+KEYFILE=$(bashio::config 'keyfile')
+CUSTOM_CONFIG=$(bashio::config 'custom_config')
+
+# Configure anonymous access
+if [ "$ANONYMOUS" = "true" ]; then
+    bashio::log.info "Anonymous access enabled"
+    sed -i 's/allow_anonymous.*/allow_anonymous true/' "$CONFIG_FILE"
+else
+    bashio::log.info "Anonymous access disabled"
+    sed -i 's/allow_anonymous.*/allow_anonymous false/' "$CONFIG_FILE"
+fi
+
+# Setup authentication if username is provided
+if [ -n "$USERNAME" ] && [ "$USERNAME" != "null" ]; then
+    bashio::log.info "Setting up authentication for user: $USERNAME"
+    
+    # Create password file
+    touch "$PASSWORD_FILE"
+    mosquitto_passwd -b "$PASSWORD_FILE" "$USERNAME" "$PASSWORD"
+    
+    # Update config
+    echo "password_file $PASSWORD_FILE" >> "$CONFIG_FILE"
+    echo "allow_anonymous false" >> "$CONFIG_FILE"
+fi
+
+# Setup SSL if enabled
+if [ "$SSL" = "true" ]; then
+    bashio::log.info "SSL enabled"
+    if [ -f "/ssl/$CERTFILE" ] && [ -f "/ssl/$KEYFILE" ]; then
+        echo "listener 8883" >> "$CONFIG_FILE"
+        echo "protocol mqtt" >> "$CONFIG_FILE"
+        echo "cafile /ssl/$CERTFILE" >> "$CONFIG_FILE"
+        echo "certfile /ssl/$CERTFILE" >> "$CONFIG_FILE"
+        echo "keyfile /ssl/$KEYFILE" >> "$CONFIG_FILE"
+    else
+        bashio::log.warning "SSL certificates not found, skipping SSL setup"
+    fi
+fi
+
+# Add custom config if provided
+if [ -n "$CUSTOM_CONFIG" ] && [ "$CUSTOM_CONFIG" != "null" ]; then
+    bashio::log.info "Applying custom configuration"
+    echo "$CUSTOM_CONFIG" >> "$CONFIG_FILE"
+fi
+
+bashio::log.info "Starting Mosquitto MQTT broker..."
+exec mosquitto -c "$CONFIG_FILE"

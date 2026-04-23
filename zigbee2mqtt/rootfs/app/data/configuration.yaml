@@ -1,0 +1,15 @@
+homeassistant: true
+permit_join: false
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://core-mosquitto
+serial:
+  port: /dev/ttyACM0
+  adapter: zstack
+frontend:
+  port: 8080
+advanced:
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+device_options: {}
