@@ -18,6 +18,8 @@ Calvin 的 Home Assistant Add-on 集合倉庫。
 |--------|------|
 | **FRP Client** | 透過 FRP 將 Home Assistant 暴露到外網 |
 | **Filebrowser** | 網頁版檔案管理器 |
+| **MQTT Broker** | Mosquitto MQTT Broker (1883/9001/8883) |
+| **Zigbee2MQTT** | Zigbee 閘道橋接器，取代專屬 Zigbee Hub |
 
 ## 開發
 
